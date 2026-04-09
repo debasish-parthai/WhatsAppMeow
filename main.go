@@ -27,57 +27,72 @@ import (
 var wac *whatsmeow.Client
 var qrCodeStr string
 var connecting bool
+var loginTimeout bool
+
+type MessageLog struct {
+	Phone     string `json:"phone"`
+	Message   string `json:"message"`
+	Type      string `json:"type"` // "sent" or "received"
+	Timestamp string `json:"timestamp"`
+}
+
+var messageHistory []MessageLog
 
 func eventHandler(evt interface{}) {
 	switch v := evt.(type) {
-		case *events.Message:
-			chatJID := v.Info.Chat
-			if chatJID.Server == "lid" {
-				// If RecipientAlt is provided and is a phone number, use it
-				if !v.Info.RecipientAlt.IsEmpty() && v.Info.RecipientAlt.Server == "s.whatsapp.net" {
-					chatJID = v.Info.RecipientAlt
-				} else if v.Info.DeviceSentMeta != nil && v.Info.DeviceSentMeta.DestinationJID != "" {
-					if parsed, err := types.ParseJID(v.Info.DeviceSentMeta.DestinationJID); err == nil && parsed.Server == "s.whatsapp.net" {
-						chatJID = parsed
-					}
-				}
-				
-				// Fallback to local LID store mapping if it's still a lid
-				if chatJID.Server == "lid" && wac.Store.LIDs != nil {
-					if pn, err := wac.Store.LIDs.GetPNForLID(context.Background(), chatJID); err == nil && !pn.IsEmpty() {
-						chatJID = pn
-					}
+	case *events.Message:
+		chatJID := v.Info.Chat
+		if chatJID.Server == "lid" {
+			if !v.Info.RecipientAlt.IsEmpty() && v.Info.RecipientAlt.Server == "s.whatsapp.net" {
+				chatJID = v.Info.RecipientAlt
+			} else if v.Info.DeviceSentMeta != nil && v.Info.DeviceSentMeta.DestinationJID != "" {
+				if parsed, err := types.ParseJID(v.Info.DeviceSentMeta.DestinationJID); err == nil && parsed.Server == "s.whatsapp.net" {
+					chatJID = parsed
 				}
 			}
-
-			senderJID := v.Info.Sender
-			if senderJID.Server == "lid" {
-				if !v.Info.SenderAlt.IsEmpty() && v.Info.SenderAlt.Server == "s.whatsapp.net" {
-					senderJID = v.Info.SenderAlt
-				} else if wac.Store.LIDs != nil {
-					if pn, err := wac.Store.LIDs.GetPNForLID(context.Background(), senderJID); err == nil && !pn.IsEmpty() {
-						senderJID = pn
-					}
+			if chatJID.Server == "lid" && wac.Store.LIDs != nil {
+				if pn, err := wac.Store.LIDs.GetPNForLID(context.Background(), chatJID); err == nil && !pn.IsEmpty() {
+					chatJID = pn
 				}
+			}
+		}
+
+		senderJID := v.Info.Sender
+		if senderJID.Server == "lid" {
+			if !v.Info.SenderAlt.IsEmpty() && v.Info.SenderAlt.Server == "s.whatsapp.net" {
+				senderJID = v.Info.SenderAlt
+			} else if wac.Store.LIDs != nil {
+				if pn, err := wac.Store.LIDs.GetPNForLID(context.Background(), senderJID); err == nil && !pn.IsEmpty() {
+					senderJID = pn
+				}
+			}
+		}
+
+		msgContent := v.Message.GetConversation()
+		if msgContent == "" && v.Message.ExtendedTextMessage != nil {
+			msgContent = v.Message.ExtendedTextMessage.GetText()
+		}
+
+		if msgContent != "" {
+			entry := MessageLog{
+				Message:   msgContent,
+				Timestamp: time.Now().Format("02 Jan 15:04"),
 			}
 
 			if v.Info.IsFromMe {
-				// Debug log to see the exact JID properties
-				// fmt.Printf("[DEBUG] IsFromMe=true, Chat=%s, SenderAlt=%s, RecipientAlt=%s, DeviceSentMeta=%+v\n", v.Info.Chat.String(), v.Info.SenderAlt.String(), v.Info.RecipientAlt.String(), v.Info.DeviceSentMeta)
-				
-				// Message sent from your own WhatsApp app/web
-				fmt.Printf("[Outgoing (Phone)] Sent a message to %s: %s\n", chatJID.User, v.Message.GetConversation())
+				entry.Phone = chatJID.User
+				entry.Type = "sent"
+				fmt.Printf("[Outgoing] To %s: %s\n", entry.Phone, entry.Message)
 			} else {
-				// Debug log
-				// fmt.Printf("[DEBUG] IsFromMe=false, Sender=%s, SenderAlt=%s, RecipientAlt=%s\n", v.Info.Sender.String(), v.Info.SenderAlt.String(), v.Info.RecipientAlt.String())
-
-				// Message received from someone else
-				fmt.Printf("[Incoming] Received a message from %s: %s\n", senderJID.User, v.Message.GetConversation())
+				entry.Phone = senderJID.User
+				entry.Type = "received"
+				fmt.Printf("[Incoming] From %s: %s\n", entry.Phone, entry.Message)
 			}
-			
-		case *events.LoggedOut:
-			fmt.Println("\n[!] WARNING: The device was unlinked from the phone. The session has been destroyed.")
-			os.Exit(0)
+			messageHistory = append(messageHistory, entry)
+		}
+
+	case *events.LoggedOut:
+		fmt.Println("\n[!] WARNING: The device was unlinked.")
 	}
 }
 
@@ -104,6 +119,13 @@ func loginHandler(ctx context.Context, input *LoginInput) (*LoginOutput, error) 
 	}
 
 	if wac.Store.ID == nil {
+		if loginTimeout {
+			resp.Body.Status = "timeout"
+			resp.Body.Message = "QR code generation timed out. Please request again."
+			loginTimeout = false
+			return resp, nil
+		}
+
 		if qrCodeStr == "" && !connecting {
 			connecting = true
 			qrChan, _ := wac.GetQRChannel(context.Background())
@@ -116,11 +138,19 @@ func loginHandler(ctx context.Context, input *LoginInput) (*LoginOutput, error) 
 				for evt := range qrChan {
 					if evt.Event == "code" {
 						qrCodeStr = evt.Code
+						fmt.Println(qrCodeStr)
 						fmt.Println("New QR Code generated.")
 					} else if evt.Event == "success" {
 						qrCodeStr = ""
 						connecting = false
+						loginTimeout = false
 						fmt.Println("Login successful!")
+					} else if evt.Event == "timeout" {
+						qrCodeStr = ""
+						connecting = false
+						loginTimeout = true
+						fmt.Println("Login timeout. Please request a new QR code.")
+						wac.Disconnect()
 					}
 				}
 			}()
@@ -236,16 +266,26 @@ func logoutHandler(ctx context.Context, input *LogoutInput) (*LogoutOutput, erro
 	return resp, nil
 }
 
+type HistoryInput struct{}
+type HistoryOutput struct {
+	Body []MessageLog
+}
+
+func historyHandler(ctx context.Context, input *HistoryInput) (*HistoryOutput, error) {
+	return &HistoryOutput{Body: messageHistory}, nil
+}
+
 func main() {
+	// Create data directory if it doesn't exist
+	_ = os.Mkdir("data", 0755)
+
 	dbLog := waLog.Stdout("Database", "INFO", true)
-	// Make sure you have a valid SQLite database file
-	// modernc.org/sqlite enables PRAGMAs via `_pragma=...` query parameters.
-	// For concurrency, WAL mode and a high busy_timeout are required.
-	dsn := "file:examplestore.db?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
+	dsn := "file:data/whatsmeow.db?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
 	container, err := sqlstore.New(context.Background(), "sqlite", dsn, dbLog)
 	if err != nil {
 		panic(err)
 	}
+    // ... rest of main
 
 	// If you want multiple sessions, remember their JIDs and use .GetDevice(jid) or .GetAllDevices() for all.
 	deviceStore, err := container.GetFirstDevice(context.Background())
@@ -301,10 +341,33 @@ func main() {
 		Description: "Logs out the current WhatsApp session.",
 	}, logoutHandler)
 
+	huma.Register(api, huma.Operation{
+		OperationID: "history",
+		Method:      http.MethodGet,
+		Path:        "/history",
+		Summary:     "Get Message History",
+		Description: "Returns all captured incoming and outgoing messages.",
+	}, historyHandler)
+
 	go func() {
 		fmt.Println("Server running on http://localhost:8080")
 		fmt.Println("Docs available at http://localhost:8080/docs")
-		if err := http.ListenAndServe(":8080", mux); err != nil {
+		
+		// Simple CORS middleware
+		corsMux := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+			w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+
+			mux.ServeHTTP(w, r)
+		})
+
+		if err := http.ListenAndServe(":8080", corsMux); err != nil {
 			panic(err)
 		}
 	}()

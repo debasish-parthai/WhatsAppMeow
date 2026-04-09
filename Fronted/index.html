@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Web</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="tabs">
+        <button type="button" id="tab-login" class="tab-btn active" onclick="openTab('login-tab')">Login</button>
+        <button type="button" id="tab-send" class="tab-btn hidden" onclick="openTab('send-tab')">Send Message</button>
+        <button type="button" id="tab-history" class="tab-btn hidden" onclick="openTab('history-tab')">Message History</button>
+    </div>
+
+    <div class="container">
+        <!-- Login Tab -->
+        <div id="login-tab" class="tab-content active">
+            <h1>WhatsApp Login</h1>
+            <div id="status-container">
+                <p id="status-message">Ready to connect.</p>
+                <button type="button" id="login-btn" onclick="startLogin()">Login</button>
+            </div>
+
+            <div id="qr-container" class="hidden">
+                <img id="qr-image" src="" alt="WhatsApp QR Code">
+                <p class="instruction">Scan the QR code with your WhatsApp app.</p>
+            </div>
+
+            <div id="success-container" class="hidden">
+                <div class="success-icon">✓</div>
+                <h2>Login Successfully!</h2>
+                <p>Your WhatsApp is now connected.</p>
+                <button type="button" id="logout-btn" class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- Send Message Tab -->
+        <div id="send-tab" class="tab-content hidden">
+            <h1>Send Message</h1>
+            <form id="message-form" onsubmit="return handleFormSubmit(event)">
+                <div class="form-group">
+                    <label for="mobile-number">Mobile Number (without country code)</label>
+                    <div class="input-group">
+                        <span class="prefix">91</span>
+                        <input type="text" id="mobile-number" placeholder="e.g. 7815030574" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="message-text">Message</label>
+                    <textarea id="message-text" rows="4" placeholder="Type your message here..." required></textarea>
+                </div>
+                <button type="submit" id="send-btn">Send Message</button>
+            </form>
+            <p id="send-status"></p>
+        </div>
+
+        <!-- Message History Tab -->
+        <div id="history-tab" class="tab-content hidden">
+            <h1>Message History</h1>
+            <div id="history-list">
+                <!-- Messages will be appended here -->
+            </div>
+            <div class="history-actions">
+                <button type="button" onclick="clearHistory()" class="small-btn">Clear History</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
