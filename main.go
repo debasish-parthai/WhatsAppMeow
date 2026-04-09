@@ -30,14 +30,54 @@ var connecting bool
 
 func eventHandler(evt interface{}) {
 	switch v := evt.(type) {
-	case *events.Message:
-		if v.Info.IsFromMe {
-			// Message sent from your own WhatsApp app/web
-			fmt.Printf("[Outgoing (Phone)] Sent a message to %s: %s\n", v.Info.Chat.User, v.Message.GetConversation())
-		} else {
-			// Message received from someone else
-			fmt.Printf("[Incoming] Received a message from %s: %s\n", v.Info.Sender.User, v.Message.GetConversation())
-		}
+		case *events.Message:
+			chatJID := v.Info.Chat
+			if chatJID.Server == "lid" {
+				// If RecipientAlt is provided and is a phone number, use it
+				if !v.Info.RecipientAlt.IsEmpty() && v.Info.RecipientAlt.Server == "s.whatsapp.net" {
+					chatJID = v.Info.RecipientAlt
+				} else if v.Info.DeviceSentMeta != nil && v.Info.DeviceSentMeta.DestinationJID != "" {
+					if parsed, err := types.ParseJID(v.Info.DeviceSentMeta.DestinationJID); err == nil && parsed.Server == "s.whatsapp.net" {
+						chatJID = parsed
+					}
+				}
+				
+				// Fallback to local LID store mapping if it's still a lid
+				if chatJID.Server == "lid" && wac.Store.LIDs != nil {
+					if pn, err := wac.Store.LIDs.GetPNForLID(context.Background(), chatJID); err == nil && !pn.IsEmpty() {
+						chatJID = pn
+					}
+				}
+			}
+
+			senderJID := v.Info.Sender
+			if senderJID.Server == "lid" {
+				if !v.Info.SenderAlt.IsEmpty() && v.Info.SenderAlt.Server == "s.whatsapp.net" {
+					senderJID = v.Info.SenderAlt
+				} else if wac.Store.LIDs != nil {
+					if pn, err := wac.Store.LIDs.GetPNForLID(context.Background(), senderJID); err == nil && !pn.IsEmpty() {
+						senderJID = pn
+					}
+				}
+			}
+
+			if v.Info.IsFromMe {
+				// Debug log to see the exact JID properties
+				// fmt.Printf("[DEBUG] IsFromMe=true, Chat=%s, SenderAlt=%s, RecipientAlt=%s, DeviceSentMeta=%+v\n", v.Info.Chat.String(), v.Info.SenderAlt.String(), v.Info.RecipientAlt.String(), v.Info.DeviceSentMeta)
+				
+				// Message sent from your own WhatsApp app/web
+				fmt.Printf("[Outgoing (Phone)] Sent a message to %s: %s\n", chatJID.User, v.Message.GetConversation())
+			} else {
+				// Debug log
+				// fmt.Printf("[DEBUG] IsFromMe=false, Sender=%s, SenderAlt=%s, RecipientAlt=%s\n", v.Info.Sender.String(), v.Info.SenderAlt.String(), v.Info.RecipientAlt.String())
+
+				// Message received from someone else
+				fmt.Printf("[Incoming] Received a message from %s: %s\n", senderJID.User, v.Message.GetConversation())
+			}
+			
+		case *events.LoggedOut:
+			fmt.Println("\n[!] WARNING: The device was unlinked from the phone. The session has been destroyed.")
+			os.Exit(0)
 	}
 }
 
