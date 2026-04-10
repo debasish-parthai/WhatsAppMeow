@@ -54,9 +54,13 @@ func (d *EventDispatcher) HandleEvent(evt interface{}) {
 			}
 		}
 
+		// LLD Logic: Distinguish Web vs Mobile WhatsApp
+		isWeb := false
 		msgContent := v.Message.GetConversation()
+
 		if msgContent == "" && v.Message.ExtendedTextMessage != nil {
 			msgContent = v.Message.ExtendedTextMessage.GetText()
+			isWeb = true
 		}
 
 		if msgContent != "" {
@@ -66,11 +70,12 @@ func (d *EventDispatcher) HandleEvent(evt interface{}) {
 				phone = chatJID.User
 			}
 
-			// LLD Logic: Distinguish Web vs Mobile WhatsApp
-			isWeb := false
-			if v.Info.Sender.Device > 0 || v.Info.DeviceSentMeta != nil {
-				isWeb = true
-			}
+			
+			// Debug: print parsed text payload from the event message.
+			//fmt.Printf("Message payload text: %q\n", msgContent)
+			// if v.Info.Sender.Device > 0 || v.Info.DeviceSentMeta != nil {
+			// 	isWeb = true
+			// }
 
 			if d.Listener != nil {
 				d.Listener.OnMessageReceived(phone, msgContent, v.Info.IsFromMe, isWeb, timestamp)

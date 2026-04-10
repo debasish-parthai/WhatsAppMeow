@@ -23,11 +23,11 @@ func NewMessagingService(sender whatsapp.MessageSender) *MessagingService {
 
 func (s *MessagingService) SendMessage(ctx context.Context, input *models.SendMessageInput) (*models.SendMessageOutput, error) {
 	msgID, err := s.Sender.SendTextMessage(ctx, input.Body.Phone, input.Body.Message)
+	fmt.Printf("Sent a message(API) to %s: %s\n", input.Body.Phone, input.Body.Message)
+	
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Printf("Sent a message to %s: %s\n", input.Body.Phone, input.Body.Message)
 
 	output := &models.SendMessageOutput{}
 	output.Body.Success = true
