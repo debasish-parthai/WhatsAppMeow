@@ -25,9 +25,21 @@ import (
 )
 
 var wac *whatsmeow.Client
+var container *sqlstore.Container
 var qrCodeStr string
 var connecting bool
 var loginTimeout bool
+
+func initWhatsAppClient() {
+	deviceStore, err := container.GetFirstDevice(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	clientLog := waLog.Stdout("Client", "INFO", true)
+	wac = whatsmeow.NewClient(deviceStore, clientLog)
+	wac.AddEventHandler(eventHandler)
+}
 
 type MessageLog struct {
 	Phone     string `json:"phone"`
@@ -41,6 +53,7 @@ var messageHistory []MessageLog
 func eventHandler(evt interface{}) {
 	switch v := evt.(type) {
 	case *events.Message:
+		// ... existing message handling ...
 		chatJID := v.Info.Chat
 		if chatJID.Server == "lid" {
 			if !v.Info.RecipientAlt.IsEmpty() && v.Info.RecipientAlt.Server == "s.whatsapp.net" {
@@ -93,6 +106,10 @@ func eventHandler(evt interface{}) {
 
 	case *events.LoggedOut:
 		fmt.Println("\n[!] WARNING: The device was unlinked.")
+		wac.Logout(context.Background())
+		qrCodeStr = ""
+		connecting = false
+		initWhatsAppClient()
 	}
 }
 
@@ -112,7 +129,7 @@ type LoginOutput struct {
 func loginHandler(ctx context.Context, input *LoginInput) (*LoginOutput, error) {
 	resp := &LoginOutput{}
 
-	if wac.IsLoggedIn() {
+	if wac.IsLoggedIn() && wac.IsConnected() {
 		resp.Body.Status = "logged_in"
 		resp.Body.Message = "Device is already logged in"
 		return resp, nil
@@ -244,7 +261,7 @@ type StatusOutput struct {
 func statusHandler(ctx context.Context, input *StatusInput) (*StatusOutput, error) {
 	resp := &StatusOutput{}
 	resp.Body.Connected = wac.IsConnected()
-	resp.Body.LoggedIn = wac.IsLoggedIn()
+	resp.Body.LoggedIn = wac.IsLoggedIn() && wac.IsConnected()
 	return resp, nil
 }
 
@@ -261,6 +278,9 @@ func logoutHandler(ctx context.Context, input *LogoutInput) (*LogoutOutput, erro
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to logout: " + err.Error())
 	}
+	qrCodeStr = ""
+	connecting = false
+	initWhatsAppClient()
 	resp := &LogoutOutput{}
 	resp.Body.Success = true
 	return resp, nil
@@ -281,21 +301,13 @@ func main() {
 
 	dbLog := waLog.Stdout("Database", "INFO", true)
 	dsn := "file:data/whatsmeow.db?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
-	container, err := sqlstore.New(context.Background(), "sqlite", dsn, dbLog)
-	if err != nil {
-		panic(err)
-	}
-    // ... rest of main
-
-	// If you want multiple sessions, remember their JIDs and use .GetDevice(jid) or .GetAllDevices() for all.
-	deviceStore, err := container.GetFirstDevice(context.Background())
+	var err error
+	container, err = sqlstore.New(context.Background(), "sqlite", dsn, dbLog)
 	if err != nil {
 		panic(err)
 	}
 
-	clientLog := waLog.Stdout("Client", "INFO", true)
-	wac = whatsmeow.NewClient(deviceStore, clientLog)
-	wac.AddEventHandler(eventHandler)
+	initWhatsAppClient()
 
 	if wac.Store.ID != nil {
 		// No ID stored, new login

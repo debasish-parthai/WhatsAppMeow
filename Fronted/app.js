@@ -73,11 +73,12 @@ function handleSuccessfulLogin() {
     getEl('tab-send').classList.remove('hidden');
     getEl('tab-history').classList.remove('hidden');
     
-    // Start history polling
+    // Start history polling (this also acts as a session check)
     if (!historyInterval) historyInterval = setInterval(fetchHistory, 5000);
 }
 
 function handleLoggedOut() {
+    console.log("Session lost or logged out. Resetting UI.");
     stopPolling();
     if (historyInterval) { clearInterval(historyInterval); historyInterval = null; }
     
@@ -140,6 +141,7 @@ async function sendMessage() {
             fetchHistory(); // Immediate refresh
         } else {
             if (sendStatus) { sendStatus.textContent = 'Error: ' + (data.message || 'Failed'); sendStatus.style.color = 'red'; }
+            // If backend returns 401, session is dead
             if (response.status === 401) handleLoggedOut();
         }
     } catch (error) { if (sendStatus) sendStatus.textContent = 'Network error.'; }
@@ -148,10 +150,19 @@ async function sendMessage() {
 async function fetchHistory() {
     try {
         const response = await fetch(`${API_BASE}/history`);
+        
+        // CRITICAL: If backend says 401 Unauthorized, it means the phone unlinked or session died
+        if (response.status === 401) {
+            handleLoggedOut();
+            return;
+        }
+
         if (!response.ok) return;
         const messages = await response.json();
         renderHistory(messages);
-    } catch (error) { console.error('History fetch error:', error); }
+    } catch (error) { 
+        console.error('History fetch error:', error);
+    }
 }
 
 function renderHistory(messages) {
@@ -163,7 +174,6 @@ function renderHistory(messages) {
         return;
     }
 
-    // Sort messages newest first if not already
     const sorted = [...messages].reverse();
 
     list.innerHTML = sorted.map(item => `
@@ -176,7 +186,6 @@ function renderHistory(messages) {
 }
 
 function clearHistory() {
-    // History is currently server-side only in this implementation
     alert('Server-side history cannot be cleared from here yet.');
 }
 
