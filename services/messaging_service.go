@@ -35,6 +35,20 @@ func (s *MessagingService) SendMessage(ctx context.Context, input *models.SendMe
 	return output, nil
 }
 
+func (s *MessagingService) SendMediaMessage(ctx context.Context, input *models.SendMediaMessageInput) (*models.SendMediaMessageOutput, error) {
+	msgID, err := s.Sender.SendMediaMessage(ctx, input.Body.Phone, input.Body.FilePath, input.Body.MediaType, input.Body.Caption)
+	fmt.Printf("[Outgoing (API) Media] To %s: %s - %s\n", input.Body.Phone, input.Body.MediaType, input.Body.FilePath)
+
+	if err != nil {
+		return nil, err
+	}
+
+	output := &models.SendMediaMessageOutput{}
+	output.Body.Success = true
+	output.Body.MessageID = msgID
+	return output, nil
+}
+
 func (s *MessagingService) GetHistory() []models.MessageLog {
 	return s.MessageHistory
 }

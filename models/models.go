@@ -33,6 +33,22 @@ type SendMessageOutput struct {
 	}
 }
 
+type SendMediaMessageInput struct {
+	Body struct {
+		Phone     string `json:"phone" doc:"Phone number with country code, e.g. 1234567890"`
+		FilePath  string `json:"file_path" doc:"Local file path to the media (e.g., media/images/sent_image.jpg)"`
+		MediaType string `json:"media_type" doc:"Type of media: 'image' or 'document'"`
+		Caption   string `json:"caption,omitempty" doc:"Optional caption for the media (images/videos only)"`
+	}
+}
+
+type SendMediaMessageOutput struct {
+	Body struct {
+		Success   bool   `json:"success" doc:"True if media message sent successfully"`
+		MessageID string `json:"message_id,omitempty" doc:"ID of the sent message"`
+	}
+}
+
 type StatusInput struct{}
 
 type StatusOutput struct {

@@ -46,6 +46,20 @@ func (h *APIHandlers) SendMessageHandler(ctx context.Context, input *models.Send
 	return resp, nil
 }
 
+func (h *APIHandlers) SendMediaMessageHandler(ctx context.Context, input *models.SendMediaMessageInput) (*models.SendMediaMessageOutput, error) {
+	resp, err := h.MessagingService.SendMediaMessage(ctx, input)
+	if err != nil {
+		if err.Error() == "WhatsApp is not logged in or connected" {
+			return nil, huma.Error401Unauthorized(err.Error())
+		}
+		if err.Error() == "invalid phone number format" {
+			return nil, huma.Error400BadRequest(err.Error())
+		}
+		return nil, huma.Error500InternalServerError("Failed to send media message: " + err.Error())
+	}
+	return resp, nil
+}
+
 func (h *APIHandlers) StatusHandler(ctx context.Context, input *models.StatusInput) (*models.StatusOutput, error) {
 	resp, err := h.AuthService.Status()
 	if err != nil {

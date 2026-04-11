@@ -17,8 +17,11 @@ import (
 )
 
 func main() {
-	// Create data directory if it doesn't exist
-	_ = os.Mkdir("data", 0755)
+	// Create data and media directories if they don't exist
+	_ = os.MkdirAll("data", 0755)
+	_ = os.MkdirAll("media/images", 0755)
+	_ = os.MkdirAll("media/videos", 0755)
+	_ = os.MkdirAll("media/documents", 0755)
 
 	dsn := "file:data/whatsmeow.db?_pragma=foreign_keys(ON)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
 	
@@ -69,6 +72,14 @@ func main() {
 		Summary:     "Send a message",
 		Description: "Sends a text message to a specified phone number.",
 	}, apiHandlers.SendMessageHandler)
+
+	huma.Register(api, huma.Operation{
+		OperationID: "send-media-message",
+		Method:      http.MethodPost,
+		Path:        "/send-media-message",
+		Summary:     "Send a media message",
+		Description: "Sends a media message (image, document) to a specified phone number using a local file path.",
+	}, apiHandlers.SendMediaMessageHandler)
 
 	huma.Register(api, huma.Operation{
 		OperationID: "status",
