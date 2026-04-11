@@ -35,9 +35,9 @@ func (s *MessagingService) SendMessage(ctx context.Context, input *models.SendMe
 	return output, nil
 }
 
-func (s *MessagingService) SendMediaMessage(ctx context.Context, input *models.SendMediaMessageInput) (*models.SendMediaMessageOutput, error) {
-	msgID, err := s.Sender.SendMediaMessage(ctx, input.Body.Phone, input.Body.FilePath, input.Body.MediaType, input.Body.Caption)
-	fmt.Printf("[Outgoing (API) Media] To %s: %s - %s\n", input.Body.Phone, input.Body.MediaType, input.Body.FilePath)
+func (s *MessagingService) SendMediaMessage(ctx context.Context, phone string, data []byte, fileName string, mediaType string, caption string) (*models.SendMediaMessageOutput, error) {
+	msgID, err := s.Sender.SendMediaMessage(ctx, phone, data, fileName, mediaType, caption)
+	fmt.Printf("[Outgoing (API) Media] To %s: %s - %s\n", phone, mediaType, fileName)
 
 	if err != nil {
 		return nil, err

@@ -38,21 +38,55 @@
         <!-- Send Message Tab -->
         <div id="send-tab" class="tab-content hidden">
             <h1>Send Message</h1>
-            <form id="message-form" onsubmit="return handleFormSubmit(event)">
-                <div class="form-group">
-                    <label for="mobile-number">Mobile Number (without country code)</label>
-                    <div class="input-group">
-                        <span class="prefix">91</span>
-                        <input type="text" id="mobile-number" placeholder="e.g. 7815030574" required>
+            <div style="margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 20px;">
+                <h3>Send Text</h3>
+                <form id="message-form" onsubmit="return handleFormSubmit(event)">
+                    <div class="form-group">
+                        <label for="mobile-number">Mobile Number (without country code)</label>
+                        <div class="input-group">
+                            <span class="prefix">91</span>
+                            <input type="text" id="mobile-number" placeholder="e.g. 7815030574" required>
+                        </div>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label for="message-text">Message</label>
-                    <textarea id="message-text" rows="4" placeholder="Type your message here..." required></textarea>
-                </div>
-                <button type="submit" id="send-btn">Send Message</button>
-            </form>
-            <p id="send-status"></p>
+                    <div class="form-group">
+                        <label for="message-text">Message</label>
+                        <textarea id="message-text" rows="4" placeholder="Type your message here..." required></textarea>
+                    </div>
+                    <button type="submit" id="send-btn">Send Message</button>
+                </form>
+                <p id="send-status"></p>
+            </div>
+
+            <div>
+                <h3>Send Media</h3>
+                <form id="media-form" onsubmit="return handleMediaSubmit(event)" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="media-number">Mobile Number (without country code)</label>
+                        <div class="input-group">
+                            <span class="prefix">91</span>
+                            <input type="text" id="media-number" placeholder="e.g. 7815030574" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="media-type">Media Type</label>
+                        <select id="media-type" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                            <option value="image">Image</option>
+                            <option value="document">Document</option>
+                            <option value="video">Video</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label for="media-file">Select File</label>
+                        <input type="file" id="media-file" required style="width: 100%;">
+                    </div>
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label for="media-caption">Caption (Optional)</label>
+                        <input type="text" id="media-caption" placeholder="Caption here..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                    </div>
+                    <button type="submit" id="send-media-btn" style="margin-top: 15px;">Send Media</button>
+                </form>
+                <p id="send-media-status"></p>
+            </div>
         </div>
 
         <!-- Message History Tab -->

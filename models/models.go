@@ -1,5 +1,7 @@
 package models
 
+import "github.com/danielgtaylor/huma/v2"
+
 // MessageLog represents a logged message
 type MessageLog struct {
 	Phone     string `json:"phone"`
@@ -33,13 +35,15 @@ type SendMessageOutput struct {
 	}
 }
 
+type SendMediaMessageForm struct {
+	Phone     string        `form:"phone" doc:"Phone number with country code, e.g. 1234567890" required:"true"`
+	MediaType string        `form:"media_type" doc:"Type of media: 'image', 'document', or 'video'" required:"true"`
+	Caption   string        `form:"caption" doc:"Optional caption for the media" required:"false"`
+	File      huma.FormFile `form:"file" doc:"The media file to upload" required:"true"`
+}
+
 type SendMediaMessageInput struct {
-	Body struct {
-		Phone     string `json:"phone" doc:"Phone number with country code, e.g. 1234567890"`
-		FilePath  string `json:"file_path" doc:"Local file path to the media (e.g., media/images/sent_image.jpg)"`
-		MediaType string `json:"media_type" doc:"Type of media: 'image' or 'document'"`
-		Caption   string `json:"caption,omitempty" doc:"Optional caption for the media (images/videos only)"`
-	}
+	RawBody huma.MultipartFormFiles[SendMediaMessageForm]
 }
 
 type SendMediaMessageOutput struct {

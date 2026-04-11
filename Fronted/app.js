@@ -116,6 +116,51 @@ async function handleFormSubmit(event) {
     return false;
 }
 
+async function handleMediaSubmit(event) {
+    event.preventDefault();
+    await sendMedia();
+    return false;
+}
+
+async function sendMedia() {
+    const number = getEl('media-number').value.trim();
+    const mediaType = getEl('media-type').value;
+    const fileInput = getEl('media-file');
+    const caption = getEl('media-caption').value.trim();
+    const sendStatus = getEl('send-media-status');
+    
+    if (!number || !fileInput.files.length) return;
+
+    const fullNumber = '91' + number;
+    if (sendStatus) { sendStatus.textContent = 'Uploading and Sending...'; sendStatus.style.color = '#555'; }
+
+    const formData = new FormData();
+    formData.append('phone', fullNumber);
+    formData.append('media_type', mediaType);
+    formData.append('file', fileInput.files[0]);
+    if (caption) formData.append('caption', caption);
+
+    try {
+        const response = await fetch(`${API_BASE}/send-media-message`, {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            if (sendStatus) { sendStatus.textContent = 'Media Sent!'; sendStatus.style.color = 'green'; }
+            getEl('media-number').value = '';
+            fileInput.value = '';
+            getEl('media-caption').value = '';
+            fetchHistory(); // Immediate refresh
+        } else {
+            if (sendStatus) { sendStatus.textContent = 'Error: ' + (data.message || 'Failed'); sendStatus.style.color = 'red'; }
+            // If backend returns 401, session is dead
+            if (response.status === 401) handleLoggedOut();
+        }
+    } catch (error) { if (sendStatus) sendStatus.textContent = 'Network error.'; }
+}
+
 async function sendMessage() {
     const number = getEl('mobile-number').value.trim();
     const message = getEl('message-text').value.trim();

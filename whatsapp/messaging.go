@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"go.mau.fi/whatsmeow"
@@ -56,7 +54,7 @@ func (s *DefaultMessageSender) SendTextMessage(ctx context.Context, to string, m
 	return resp.ID, nil
 }
 
-func (s *DefaultMessageSender) SendMediaMessage(ctx context.Context, to string, filePath string, mediaType string, caption string) (string, error) {
+func (s *DefaultMessageSender) SendMediaMessage(ctx context.Context, to string, data []byte, fileName string, mediaType string, caption string) (string, error) {
 	if !s.Adapter.Client.IsConnected() || !s.Adapter.Client.IsLoggedIn() {
 		return "", fmt.Errorf("WhatsApp is not logged in or connected")
 	}
@@ -69,11 +67,6 @@ func (s *DefaultMessageSender) SendMediaMessage(ctx context.Context, to string, 
 	targetJID, err := types.ParseJID(jidStr)
 	if err != nil {
 		return "", fmt.Errorf("invalid phone number format")
-	}
-
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read file: %v", err)
 	}
 
 	var waMediaType whatsmeow.MediaType
@@ -93,7 +86,6 @@ func (s *DefaultMessageSender) SendMediaMessage(ctx context.Context, to string, 
 	}
 
 	msgPayload := &waProto.Message{}
-	fileName := filepath.Base(filePath)
 
 	// Simple mime type detection
 	mimeType := http.DetectContentType(data)

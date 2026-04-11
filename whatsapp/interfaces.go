@@ -17,7 +17,7 @@ type Authenticator interface {
 // MessageSender abstracts the sending mechanism (Strategy Pattern)
 type MessageSender interface {
 	SendTextMessage(ctx context.Context, to string, message string) (string, error)
-	SendMediaMessage(ctx context.Context, to string, filePath string, mediaType string, caption string) (string, error)
+	SendMediaMessage(ctx context.Context, to string, data []byte, fileName string, mediaType string, caption string) (string, error)
 }
 
 // MessageListener interface to receive events from WhatsApp (Observer Pattern)

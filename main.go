@@ -78,7 +78,7 @@ func main() {
 		Method:      http.MethodPost,
 		Path:        "/send-media-message",
 		Summary:     "Send a media message",
-		Description: "Sends a media message (image, document) to a specified phone number using a local file path.",
+		Description: "Sends a media message (image, document, video) using multipart/form-data. Requires fields: phone, media_type, file. Optional: caption.",
 	}, apiHandlers.SendMediaMessageHandler)
 
 	huma.Register(api, huma.Operation{

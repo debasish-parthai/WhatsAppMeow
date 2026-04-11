@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"io"
 
 	"github.com/danielgtaylor/huma/v2"
 
@@ -47,7 +48,21 @@ func (h *APIHandlers) SendMessageHandler(ctx context.Context, input *models.Send
 }
 
 func (h *APIHandlers) SendMediaMessageHandler(ctx context.Context, input *models.SendMediaMessageInput) (*models.SendMediaMessageOutput, error) {
-	resp, err := h.MessagingService.SendMediaMessage(ctx, input)
+	formData := input.RawBody.Data()
+
+	phone := formData.Phone
+	mediaType := formData.MediaType
+	caption := formData.Caption
+
+	file := formData.File
+	defer file.Close()
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to read file: " + err.Error())
+	}
+
+	resp, err := h.MessagingService.SendMediaMessage(ctx, phone, data, file.Filename, mediaType, caption)
 	if err != nil {
 		if err.Error() == "WhatsApp is not logged in or connected" {
 			return nil, huma.Error401Unauthorized(err.Error())
@@ -57,6 +72,7 @@ func (h *APIHandlers) SendMediaMessageHandler(ctx context.Context, input *models
 		}
 		return nil, huma.Error500InternalServerError("Failed to send media message: " + err.Error())
 	}
+
 	return resp, nil
 }
 
