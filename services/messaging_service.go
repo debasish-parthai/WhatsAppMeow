@@ -3,6 +3,8 @@ package services
 import (
 	"context"
 	"fmt"
+	"os"
+	"time"
 
 	"whatsmeow/models"
 	"whatsmeow/whatsapp"
@@ -39,10 +41,32 @@ func (s *MessagingService) SendMediaMessage(ctx context.Context, phone string, d
 	msgID, err := s.Sender.SendMediaMessage(ctx, phone, data, fileName, mediaType, caption)
 	fmt.Printf("[Outgoing (API) Media] To %s: %s - %s\n", phone, mediaType, fileName)
 
+	var localFileName string
+	timestamp := time.Now().Unix()
+
+	if mediaType == "image" {
+		localFileName = fmt.Sprintf("media/images/sent_%d.jpg", timestamp)
+	} else if mediaType == "video" {
+		localFileName = fmt.Sprintf("media/videos/sent_%d.mp4", timestamp)
+	} else {
+		origName := "document.file"
+		if fileName != "" {
+			origName = fileName
+		}
+		localFileName = fmt.Sprintf("media/documents/sent_%d_%s", timestamp, origName)
+	}
+
+	errWrite := os.WriteFile(localFileName, data, 0644)
+	if errWrite != nil {
+		fmt.Printf("[Error] Failed to save local media file: %v\n", errWrite)
+	} else {
+		fmt.Printf("[Outgoing (API) Media] To %s: %s - saved to %s\n", phone, mediaType, localFileName)
+	}
+
 	if err != nil {
 		return nil, err
 	}
-
+	
 	output := &models.SendMediaMessageOutput{}
 	output.Body.Success = true
 	output.Body.MessageID = msgID
