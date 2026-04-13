@@ -61,7 +61,7 @@ func (a *QRCodeAuthenticator) GetLoginStatus() (string, string) {
 					if evt.Event == "code" {
 						a.qrCodeStr = evt.Code
 						fmt.Println(a.qrCodeStr)
-						fmt.Println("New QR Code generated.")
+						fmt.Println("New QR Code generated. It will expire in: ", evt.Timeout)
 					} else if evt.Event == "success" {
 						a.qrCodeStr = ""
 						a.connecting = false
